@@ -1,0 +1,438 @@
+// Game state
+const gameState = {
+    players: [],
+    currentPlayerIndex: 0,
+    wordSetter: null,
+    secretWord: '',
+    hint: '',
+    displayWord: [],
+    guessedLetters: new Set(),
+    attemptsLeft: 6,
+    isGameOver: false,
+    scores: {},
+    roundNumber: 1
+};
+
+// Hangman ASCII art for different stages
+const hangmanStages = [
+    `+---+
+|   |
+    |
+    |
+    |
+    |
+=========`,
+    `+---+
+|   |
+O   |
+    |
+    |
+    |
+=========`,
+    `+---+
+|   |
+O   |
+|   |
+    |
+    |
+=========`,
+    `+---+
+|   |
+O   |
+/|   |
+    |
+    |
+=========`,
+    `+---+
+|   |
+O   |
+/|\\  |
+    |
+    |
+=========`,
+    `+---+
+|   |
+O   |
+/|\\  |
+/    |
+    |
+=========`,
+    `+---+
+|   |
+O   |
+/|\\  |
+/ \\  |
+    |
+=========`
+];
+
+// DOM elements
+const setupEl = document.getElementById('setup');
+const wordSetupEl = document.getElementById('word-setup');
+const gameEl = document.getElementById('game');
+const playerNameInput = document.getElementById('player-name');
+const addPlayerBtn = document.getElementById('add-player');
+const playersListEl = document.getElementById('players-list');
+const startGameBtn = document.getElementById('start-game');
+const wordSetterEl = document.getElementById('word-setter');
+const secretWordInput = document.getElementById('secret-word');
+const hintInput = document.getElementById('hint');
+const setWordBtn = document.getElementById('set-word');
+const currentPlayerEl = document.getElementById('current-player');
+const attemptsEl = document.getElementById('attempts');
+const hangmanEl = document.getElementById('hangman');
+const wordEl = document.getElementById('word');
+const keyboardEl = document.getElementById('keyboard');
+const gameResultEl = document.getElementById('game-result');
+const resultMessageEl = document.getElementById('result-message');
+const revealWordEl = document.getElementById('reveal-word');
+const nextRoundBtn = document.getElementById('next-round');
+const leaderboardEl = document.getElementById('leaderboard');
+const scoreListEl = document.getElementById('score-list');
+const hintDisplayEl = document.getElementById('hint-display');
+const hintTextEl = document.getElementById('hint-text');
+const errorMessageEl = document.getElementById('error-message');
+const wordErrorEl = document.getElementById('word-error');
+
+// Helper function to show error message
+function showError(element, message, duration = 3000) {
+    element.textContent = message;
+    element.classList.remove('hidden');
+    setTimeout(() => {
+        element.classList.add('hidden');
+    }, duration);
+}
+
+// Add player to the game
+addPlayerBtn.addEventListener('click', () => {
+    const playerName = playerNameInput.value.trim();
+    if (!playerName) {
+        showError(errorMessageEl, "Please enter a player name");
+        return;
+    }
+    
+    if (gameState.players.includes(playerName)) {
+        showError(errorMessageEl, "This player name already exists");
+        return;
+    }
+    
+    gameState.players.push(playerName);
+    gameState.scores[playerName] = 0;
+    updatePlayersList();
+    playerNameInput.value = '';
+    
+    if (gameState.players.length >= 2) {
+        startGameBtn.disabled = false;
+    }
+});
+
+// Update the displayed list of players
+function updatePlayersList() {
+    playersListEl.innerHTML = '<h3>Players:</h3>';
+    const list = document.createElement('ul');
+    
+    gameState.players.forEach((player, index) => {
+        const item = document.createElement('li');
+        
+        const playerText = document.createElement('span');
+        playerText.textContent = player;
+        item.appendChild(playerText);
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = 'X';
+        removeBtn.className = 'remove-player';
+        removeBtn.addEventListener('click', () => removePlayer(index));
+        item.appendChild(removeBtn);
+        
+        list.appendChild(item);
+    });
+    
+    playersListEl.appendChild(list);
+}
+
+// Remove player
+function removePlayer(index) {
+    const player = gameState.players[index];
+    gameState.players.splice(index, 1);
+    delete gameState.scores[player];
+    updatePlayersList();
+    
+    if (gameState.players.length < 2) {
+        startGameBtn.disabled = true;
+    }
+}
+
+// Enter key functionality for inputs
+playerNameInput.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') {
+        addPlayerBtn.click();
+    }
+});
+
+secretWordInput.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') {
+        setWordBtn.click();
+    }
+});
+
+// Start the game
+startGameBtn.addEventListener('click', () => {
+    if (gameState.players.length < 2) {
+        showError(errorMessageEl, "You need at least 2 players to start");
+        return;
+    }
+    
+    setupEl.classList.add('hidden');
+    startNewRound();
+});
+
+// Set up a new round
+function startNewRound() {
+    // Choose a word setter (rotate through players)
+    const wordSetterIndex = (gameState.roundNumber - 1) % gameState.players.length;
+    gameState.wordSetter = gameState.players[wordSetterIndex];
+    
+    // Display word setup screen for the word setter
+    wordSetupEl.classList.remove('hidden');
+    wordSetterEl.textContent = `${gameState.wordSetter}, enter a word for others to guess`;
+    
+    // Clear previous inputs
+    secretWordInput.value = '';
+    hintInput.value = '';
+    
+    // Focus on the input
+    setTimeout(() => secretWordInput.focus(), 100);
+}
+
+// Set the word and begin gameplay
+setWordBtn.addEventListener('click', () => {
+    const word = secretWordInput.value.trim().toUpperCase();
+    const hint = hintInput.value.trim();
+    
+    if (!word) {
+        showError(wordErrorEl, "Please enter a word");
+        return;
+    }
+    
+    if (!/^[A-Za-z\s]+$/.test(word)) {
+        showError(wordErrorEl, "Word must contain only letters and spaces");
+        return;
+    }
+    
+    // Set up the game state
+    gameState.secretWord = word;
+    gameState.hint = hint;
+    gameState.displayWord = Array(word.length).fill('_');
+    
+    // Handle spaces in the word
+    for (let i = 0; i < word.length; i++) {
+        if (word[i] === ' ') {
+            gameState.displayWord[i] = ' ';
+        }
+    }
+    
+    gameState.guessedLetters.clear();
+    gameState.attemptsLeft = 6;
+    gameState.isGameOver = false;
+    
+    // Find the next player (not the word setter)
+    let nextPlayerIndex = gameState.players.indexOf(gameState.wordSetter) + 1;
+    if (nextPlayerIndex >= gameState.players.length) nextPlayerIndex = 0;
+    gameState.currentPlayerIndex = nextPlayerIndex;
+    
+    // Set up the display
+    wordSetupEl.classList.add('hidden');
+    gameEl.classList.remove('hidden');
+    leaderboardEl.classList.remove('hidden');
+    gameResultEl.classList.add('hidden');
+    
+    updateGameDisplay();
+    createKeyboard();
+    
+    // Show hint if provided
+    if (gameState.hint) {
+        hintDisplayEl.classList.remove('hidden');
+        hintTextEl.textContent = gameState.hint;
+    } else {
+        hintDisplayEl.classList.add('hidden');
+    }
+});
+
+// Create the keyboard buttons
+function createKeyboard() {
+    keyboardEl.innerHTML = '';
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    
+    for (const letter of letters) {
+        const button = document.createElement('button');
+        button.textContent = letter;
+        button.dataset.letter = letter;
+        button.addEventListener('click', () => {
+            if (!gameState.isGameOver) {
+                guessLetter(letter);
+            }
+        });
+        keyboardEl.appendChild(button);
+    }
+    
+    // Add keyboard listener for physical keyboard
+    document.addEventListener('keydown', handleKeyPress);
+}
+
+// Handle physical keyboard press
+function handleKeyPress(event) {
+    if (gameEl.classList.contains('hidden') || gameState.isGameOver) {
+        return;
+    }
+    
+    const key = event.key.toUpperCase();
+    if (/^[A-Z]$/.test(key)) {
+        const button = document.querySelector(`.keyboard button[data-letter="${key}"]`);
+        if (button && !button.disabled) {
+            button.click();
+        }
+    }
+}
+
+// Update the game display
+function updateGameDisplay() {
+    // Update current player
+    currentPlayerEl.textContent = gameState.players[gameState.currentPlayerIndex];
+    
+    // Update attempts
+    attemptsEl.textContent = gameState.attemptsLeft;
+    
+    // Update the hangman
+    hangmanEl.textContent = hangmanStages[6 - gameState.attemptsLeft];
+    
+    // Update the word display
+    wordEl.textContent = gameState.displayWord.join(' ');
+    
+    // Update the scores
+    updateScores();
+}
+
+// Handle a letter guess
+function guessLetter(letter) {
+    if (gameState.guessedLetters.has(letter)) return;
+    
+    gameState.guessedLetters.add(letter);
+    
+    // Find the button for this letter
+    const letterButton = document.querySelector(`.keyboard button[data-letter="${letter}"]`);
+    
+    // Check if the letter is in the word
+    if (gameState.secretWord.includes(letter)) {
+        // Update display word
+        let foundMatch = false;
+        for (let i = 0; i < gameState.secretWord.length; i++) {
+            if (gameState.secretWord[i] === letter) {
+                gameState.displayWord[i] = letter;
+                foundMatch = true;
+            }
+        }
+        
+        if (letterButton) {
+            letterButton.classList.add('correct');
+            letterButton.disabled = true;
+        }
+        
+        // Check win condition
+        if (!gameState.displayWord.includes('_')) {
+            endGame(true);
+            return;
+        }
+    } else {
+        // Incorrect guess
+        gameState.attemptsLeft--;
+        
+        if (letterButton) {
+            letterButton.classList.add('incorrect');
+            letterButton.disabled = true;
+        }
+        
+        // Check lose condition
+        if (gameState.attemptsLeft <= 0) {
+            endGame(false);
+            return;
+        }
+        
+        // Switch to next player
+        advanceToNextPlayer();
+    }
+    
+    updateGameDisplay();
+}
+
+// Advance to the next player (skip the word setter)
+function advanceToNextPlayer() {
+    do {
+        gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+    } while (gameState.players[gameState.currentPlayerIndex] === gameState.wordSetter);
+}
+
+// End the game
+function endGame(isWin) {
+    gameState.isGameOver = true;
+    
+    // Remove keyboard listener
+    document.removeEventListener('keydown', handleKeyPress);
+    
+    // Update scores if the player won
+    if (isWin) {
+        const winner = gameState.players[gameState.currentPlayerIndex];
+        gameState.scores[winner] += 1;
+    }
+    
+    // Show results
+    gameResultEl.classList.remove('hidden');
+    revealWordEl.textContent = gameState.secretWord;
+    
+    if (isWin) {
+        resultMessageEl.textContent = `${gameState.players[gameState.currentPlayerIndex]} wins!`;
+        resultMessageEl.className = "success";
+    } else {
+        resultMessageEl.textContent = 'Game Over! Nobody guessed the word.';
+        resultMessageEl.className = "";
+        
+        // Reveal the word on the display
+        wordEl.textContent = gameState.secretWord.split('').join(' ');
+    }
+    
+    updateScores();
+}
+
+// Update the score display
+function updateScores() {
+    scoreListEl.innerHTML = '';
+    
+    // Sort players by score
+    const sortedPlayers = [...gameState.players].sort((a, b) => {
+        return gameState.scores[b] - gameState.scores[a];
+    });
+    
+    sortedPlayers.forEach(player => {
+        const scoreItem = document.createElement('div');
+        scoreItem.className = 'score-item';
+        scoreItem.innerHTML = `<strong>${player}:</strong> ${gameState.scores[player]} points`;
+        
+        // Highlight current player
+        if (player === gameState.players[gameState.currentPlayerIndex]) {
+            scoreItem.style.fontWeight = 'bold';
+        }
+        
+        // Highlight word setter
+        if (player === gameState.wordSetter) {
+            scoreItem.innerHTML += ' (Word Setter)';
+        }
+        
+        scoreListEl.appendChild(scoreItem);
+    });
+}
+
+// Start the next round
+nextRoundBtn.addEventListener('click', () => {
+    gameState.roundNumber++;
+    gameEl.classList.add('hidden');
+    startNewRound();
+});
