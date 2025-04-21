@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Hangman</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Multiplayer Hangman</h1>
+        
+        <!-- Player Setup -->
+        <div id="setup" class="setup-container">
+            <h2>Player Setup</h2>
+            <div id="error-message" class="message error hidden"></div>
+            <div>
+                <input type="text" id="player-name" placeholder="Enter player name" maxlength="20">
+                <button id="add-player">Add Player</button>
+            </div>
+            <div id="players-list"></div>
+            <div style="margin-top: 20px;">
+                <button id="start-game" disabled>Start Game</button>
+            </div>
+        </div>
+
+        <!-- Word Setup -->
+        <div id="word-setup" class="setup-container hidden">
+            <h2>Word Setup</h2>
+            <div id="word-error" class="message error hidden"></div>
+            <p id="word-setter" class="message"></p>
+            <div>
+                <input type="password" id="secret-word" placeholder="Enter a word (letters only)" maxlength="20">
+                <p>Hint (optional):</p>
+                <input type="text" id="hint" placeholder="Give a hint" maxlength="50">
+                <button id="set-word">Set Word & Start Round</button>
+            </div>
+        </div>
+        
+        <!-- Game Container -->
+        <div id="game" class="game-container hidden">
+            <div class="player-info">
+                <h3>Current Player: <span id="current-player">Player 1</span></h3>
+                <p>Remaining Attempts: <span id="attempts">6</span></p>
+                <p id="hint-display" class="hidden">Hint: <span id="hint-text"></span></p>
+            </div>
+            
+            <div class="hangman-display" id="hangman">
+                +---+
+                |   |
+                    |
+                    |
+                    |
+                    |
+                =========
+            </div>
+            
+            <div class="word-display" id="word"></div>
+            
+            <div class="keyboard" id="keyboard">
+                <!-- Keyboard will be generated here -->
+            </div>
+            
+            <div id="game-result" class="hidden">
+                <h2 id="result-message"></h2>
+                <p>The word was: <strong id="reveal-word"></strong></p>
+                <button id="next-round">Next Round</button>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div id="leaderboard" class="leaderboard hidden">
+            <h3>Leaderboard</h3>
+            <div id="score-list"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
